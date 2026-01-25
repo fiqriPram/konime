@@ -71,8 +71,9 @@ async function getAnimeDetails(id: string): Promise<Anime | null> {
   }
 }
 
-async function AnimePage({ params }: { params: { id: string } }) {
-  const anime = await getAnimeDetails(params.id);
+async function AnimePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const anime = await getAnimeDetails(id);
 
   if (!anime) {
     notFound();
@@ -161,7 +162,106 @@ async function AnimePage({ params }: { params: { id: string } }) {
       )}
 
       <main className="container mx-auto px-4 py-8">
-        <div className="grid gap-8 lg:grid-cols-3">
+<div className="grid gap-8 lg:grid-cols-3">
+          {/* Sidebar */}
+          <div className="space-y-6 lg:col-span-1">
+            {/* Cover Image */}
+            <Card>
+              <div className="relative aspect-[3/4] overflow-hidden rounded-t-lg">
+                <Image
+                  src={anime.coverImage.large}
+                  alt={getTitle()}
+                  fill
+                  className="object-cover"
+                  priority
+                />
+              </div>
+            </Card>
+
+            {/* Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Film className="h-5 w-5" />
+                  Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {anime.studios?.nodes && anime.studios.nodes.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-1">Studio</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {anime.studios.nodes[0].name}
+                    </p>
+                  </div>
+                )}
+
+                {(anime.startDate?.year || anime.endDate?.year) && (
+                  <div>
+                    <h4 className="font-semibold mb-1 flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Aired
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {formatDate(anime.startDate)} -{" "}
+                      {formatDate(anime.endDate)}
+                    </p>
+                  </div>
+                )}
+
+                {anime.season && anime.seasonYear && (
+                  <div>
+                    <h4 className="font-semibold mb-1">Season</h4>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {anime.season} {anime.seasonYear}
+                    </p>
+                  </div>
+                )}
+
+                {anime.source && (
+                  <div>
+                    <h4 className="font-semibold mb-1">Source</h4>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {anime.source}
+                    </p>
+                  </div>
+                )}
+
+                {anime.averageScore && (
+                  <div>
+                    <h4 className="font-semibold mb-1 flex items-center gap-2">
+                      <Star className="h-4 w-4" />
+                      Score
+                    </h4>
+                    <p
+                      className={`text-sm font-medium ${getScoreColor(anime.averageScore)}`}
+                    >
+                      {anime.averageScore}% / 100
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button className="w-full" size="sm">
+                  Start Watching
+                </Button>
+                <Button variant="outline" className="w-full" size="sm">
+                  Mark as Completed
+                </Button>
+                <Button variant="outline" className="w-full" size="sm">
+                  Add to Plan to Watch
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Title and Actions */}
@@ -275,104 +375,7 @@ async function AnimePage({ params }: { params: { id: string } }) {
             )}
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Cover Image */}
-            <Card>
-              <div className="relative aspect-[3/4] overflow-hidden rounded-t-lg">
-                <Image
-                  src={anime.coverImage.large}
-                  alt={getTitle()}
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              </div>
-            </Card>
 
-            {/* Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Film className="h-5 w-5" />
-                  Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {anime.studios?.nodes && anime.studios.nodes.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold mb-1">Studio</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {anime.studios.nodes[0].name}
-                    </p>
-                  </div>
-                )}
-
-                {(anime.startDate?.year || anime.endDate?.year) && (
-                  <div>
-                    <h4 className="font-semibold mb-1 flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Aired
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      {formatDate(anime.startDate)} -{" "}
-                      {formatDate(anime.endDate)}
-                    </p>
-                  </div>
-                )}
-
-                {anime.season && anime.seasonYear && (
-                  <div>
-                    <h4 className="font-semibold mb-1">Season</h4>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {anime.season} {anime.seasonYear}
-                    </p>
-                  </div>
-                )}
-
-                {anime.source && (
-                  <div>
-                    <h4 className="font-semibold mb-1">Source</h4>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {anime.source}
-                    </p>
-                  </div>
-                )}
-
-                {anime.averageScore && (
-                  <div>
-                    <h4 className="font-semibold mb-1 flex items-center gap-2">
-                      <Star className="h-4 w-4" />
-                      Score
-                    </h4>
-                    <p
-                      className={`text-sm font-medium ${getScoreColor(anime.averageScore)}`}
-                    >
-                      {anime.averageScore}% / 100
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button className="w-full" size="sm">
-                  Start Watching
-                </Button>
-                <Button variant="outline" className="w-full" size="sm">
-                  Mark as Completed
-                </Button>
-                <Button variant="outline" className="w-full" size="sm">
-                  Add to Plan to Watch
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </main>
     </div>
