@@ -42,10 +42,52 @@ model Anime {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  watchlists Watchlist[]
+  episodes    Episode[]
+  watchlists  Watchlist[]
   favorites  Favorite[]
 
   @@map("anime")
+}
+
+model Episode {
+  id         String    @id @default(cuid())
+  animeId    String
+  season     Int?
+  number     Int
+  title      String?
+  synopsis   String?
+  airDate    DateTime?
+  duration   Int?      // in minutes
+  thumbnail  String?
+  videoUrl   String    // Direct video URL
+  quality1080p String?
+  quality720p  String?
+  quality480p  String?
+  subtitles   Json?      // Array of subtitle tracks
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  anime       Anime        @relation(fields: [animeId], references: [id], onDelete: Cascade)
+  watchHistory WatchHistory[]
+
+  @@map("episodes")
+}
+
+model WatchHistory {
+  id         String   @id @default(cuid())
+  userId      String
+  episodeId   String
+  watchTime   Int      @default(0) // seconds watched
+  totalTime   Int      // total duration in seconds
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episode     Episode    @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, episodeId])
+  @@map("watch_history")
 }
 
 model Watchlist {
