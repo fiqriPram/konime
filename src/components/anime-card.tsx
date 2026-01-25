@@ -29,6 +29,13 @@ interface AnimeCardProps {
   anime: Anime;
 }
 
+function createSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export function AnimeCard({ anime }: AnimeCardProps) {
   const getTitle = () => {
     return (
@@ -37,6 +44,11 @@ export function AnimeCard({ anime }: AnimeCardProps) {
       anime.title.native ||
       "Unknown Title"
     );
+  };
+
+  const getSlug = () => {
+    const title = getTitle();
+    return createSlug(title);
   };
 
   const getStatusColor = (status?: string) => {
@@ -64,8 +76,8 @@ export function AnimeCard({ anime }: AnimeCardProps) {
     return "text-red-600";
   };
 
-  return (
-    <Link href={`/anime/${anime.id}`}>
+return (
+    <Link href={`/anime/${anime.id}/${getSlug()}`}>
       <Card className="group cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-xl w-full">
         <div className="relative aspect-[3/4] w-full overflow-hidden">
           <Image
