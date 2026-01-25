@@ -18,7 +18,7 @@ async function fetchFromAniList(type: string, params?: any) {
   return response.json();
 }
 
-async function fetchFromKitsu(type: string, params?: any) {
+async function fetchFromKitsu(type: string, params?: any, retries = 2) {
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
   const url = new URL("/api/kitsu", baseUrl);
   url.searchParams.append("type", type);
@@ -29,11 +29,27 @@ async function fetchFromKitsu(type: string, params?: any) {
     });
   }
 
-  const response = await fetch(url.toString());
-  if (!response.ok) {
-    throw new Error(`Kitsu fetch failed: ${response.status}`);
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url.toString(), {
+        cache: attempt === 1 ? "force-cache" : "no-store",
+        next: attempt === 1 ? { revalidate: 3600 } : undefined,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Kitsu fetch failed: ${response.status}`);
+      }
+      
+      return response.json();
+    } catch (error) {
+      console.warn(`Kitsu attempt ${attempt} failed:`, error);
+      if (attempt === retries) {
+        throw error;
+      }
+      // Wait briefly before retry
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+    }
   }
-  return response.json();
 }
 
 function convertKitsuToAniListFormat(kitsuData: any[]) {
@@ -66,9 +82,29 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search");
   const id = searchParams.get("id");
   const fallback = searchParams.get("fallback") === "true";
+  const preferKitsu = searchParams.get("source") === "kitsu";
 
   try {
-    // Try AniList first
+    // Priority order: User preference > AniList > Kitsu
+    if (preferKitsu) {
+      // User explicitly wants Kitsu
+      try {
+        const kitsuParams: any = {};
+        if (search) kitsuParams.search = search;
+        if (id) kitsuParams.id = id;
+
+        const kitsuData = await fetchFromKitsu(type || "", kitsuParams);
+        return NextResponse.json(kitsuData);
+      } catch (kitsuError: any) {
+        console.error("Kitsu failed:", kitsuError);
+        return NextResponse.json(
+          { error: "Kitsu API unavailable" },
+          { status: 503 }
+        );
+      }
+    }
+
+    // Try AniList first (default)
     try {
       const anilistParams: any = {};
       if (search) anilistParams.search = search;
@@ -76,38 +112,37 @@ export async function GET(request: NextRequest) {
 
       const anilistData = await fetchFromAniList(type || "", anilistParams);
       return NextResponse.json(anilistData);
-    } catch (anilistError) {
-      console.warn("AniList failed, trying Kitsu:", anilistError);
+      } catch (anilistError: any) {
+        console.warn("AniList failed, trying Kitsu automatically:", anilistError);
 
-      if (!fallback) {
-        return NextResponse.json(
-          { error: "AniList API unavailable. Use ?fallback=true to try Kitsu" },
-          { status: 503 },
-        );
-      }
+        // Automatic fallback to Kitsu
+        try {
+          const kitsuParams: any = {};
+          if (search) kitsuParams.search = search;
+          if (id) kitsuParams.id = id;
 
-      // Fallback to Kitsu
-      try {
-        const kitsuParams: any = {};
-        if (search) kitsuParams.search = search;
-        if (id) kitsuParams.id = id;
-
-        const kitsuData = await fetchFromKitsu(type || "", kitsuParams);
-        const formattedData = convertKitsuToAniListFormat(kitsuData);
-        return NextResponse.json(formattedData);
-      } catch (kitsuError) {
-        console.error("Both AniList and Kitsu failed:", kitsuError);
-        return NextResponse.json(
-          { error: "Both AniList and Kitsu APIs are unavailable" },
-          { status: 500 },
-        );
-      }
+          const kitsuData = await fetchFromKitsu(type || "", kitsuParams);
+          console.log("✅ Successfully fell back to Kitsu API");
+          return NextResponse.json(kitsuData);
+        } catch (kitsuError: any) {
+          console.error("Both AniList and Kitsu failed:", kitsuError);
+          
+          return NextResponse.json(
+            { 
+              error: "Both APIs unavailable", 
+              anilistError: anilistError.message || String(anilistError),
+              kitsuError: kitsuError.message || String(kitsuError),
+              suggestion: "Try again later or use ?source=kitsu to force Kitsu"
+            },
+            { status: 500 }
+          );
+        }
     }
   } catch (error) {
     console.error("Combined API error:", error);
     return NextResponse.json(
       { error: "Failed to fetch anime data" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

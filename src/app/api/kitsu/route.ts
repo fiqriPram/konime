@@ -52,11 +52,52 @@ async function fetchKitsu(endpoint: string, params?: Record<string, string>) {
   return response.json();
 }
 
+function getCurrentSeason() {
+  const month = new Date().getMonth();
+  const year = new Date().getFullYear();
+  
+  let season;
+  if (month >= 2 && month <= 4) season = "spring";
+  else if (month >= 5 && month <= 7) season = "summer";
+  else if (month >= 8 && month <= 10) season = "fall";
+  else season = "winter";
+  
+  return { season, year };
+}
+
+function convertKitsuToAniListFormat(kitsuData: KitsuAnime[]) {
+  return kitsuData.map((item) => ({
+    id: item.id,
+    title: {
+      english: item.attributes.titles.en || item.attributes.canonicalTitle,
+      romaji: item.attributes.titles.en_jp || item.attributes.canonicalTitle,
+      native: item.attributes.titles.ja_jp || item.attributes.canonicalTitle,
+    },
+    coverImage: {
+      large: item.attributes.posterImage.large,
+    },
+    bannerImage: item.attributes.coverImage?.large,
+    description: item.attributes.synopsis,
+    episodes: item.attributes.episodeCount,
+    status: item.attributes.status,
+    genres: [], // Kitsu genres would require additional API calls
+    averageScore: item.attributes.averageRating
+      ? parseFloat(item.attributes.averageRating) * 10
+      : null,
+    studios: { nodes: [] }, // Studio info would require additional API calls
+    kitsuId: item.id,
+  }));
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
   const search = searchParams.get("search");
   const id = searchParams.get("id");
+  const page = searchParams.get("page");
+  const season = searchParams.get("season");
+  const year = searchParams.get("year");
+  const format = searchParams.get("format");
 
   try {
     switch (type) {
@@ -64,15 +105,28 @@ export async function GET(request: NextRequest) {
         const trendingData = await fetchKitsu("/anime", {
           sort: "-user_count",
           "page[limit]": "12",
+          "filter[season]": getCurrentSeason().season,
+          "filter[seasonYear]": getCurrentSeason().year.toString(),
         });
-        return NextResponse.json(trendingData.data);
+        return NextResponse.json(convertKitsuToAniListFormat(trendingData.data));
+
+      case "seasonal":
+        const currentSeason = season || getCurrentSeason().season;
+        const currentYear = year ? parseInt(year) : getCurrentSeason().year;
+        const seasonalData = await fetchKitsu("/anime", {
+          sort: "-user_count",
+          "page[limit]": "12",
+          "filter[season]": currentSeason,
+          "filter[seasonYear]": currentYear.toString(),
+        });
+        return NextResponse.json(convertKitsuToAniListFormat(seasonalData.data));
 
       case "popular":
         const popularData = await fetchKitsu("/anime", {
           sort: "-average_rating",
           "page[limit]": "12",
         });
-        return NextResponse.json(popularData.data);
+        return NextResponse.json(convertKitsuToAniListFormat(popularData.data));
 
       case "search":
         if (!search) {
@@ -85,7 +139,7 @@ export async function GET(request: NextRequest) {
           "filter[text]": search,
           "page[limit]": "20",
         });
-        return NextResponse.json(searchData.data);
+        return NextResponse.json(convertKitsuToAniListFormat(searchData.data));
 
       case "detail":
         if (!id) {
@@ -94,8 +148,52 @@ export async function GET(request: NextRequest) {
             { status: 400 },
           );
         }
-        const detailData = await fetchKitsu(`/anime/${id}`);
-        return NextResponse.json(detailData.data);
+        const detailData = await fetchKitsu(`/anime/${id}`, {
+          include: "genres,productions",
+        });
+        const formattedDetail = convertKitsuToAniListFormat([detailData.data])[0];
+        
+        // Add genres if available
+        if (detailData.included) {
+          const genres = detailData.included
+            .filter((item: any) => item.type === "genres")
+            .map((item: any) => item.attributes.name);
+          formattedDetail.genres = genres;
+        }
+        
+        return NextResponse.json(formattedDetail);
+
+      case "genres":
+        // Get all available genres
+        const genresData = await fetchKitsu("/genres", {
+          "filter[kind]": "anime",
+          "page[limit]": "50",
+        });
+        return NextResponse.json(genresData.data.map((item: any) => item.attributes.name));
+
+      case "anime-by-genre":
+        const genre = searchParams.get("genre");
+        if (!genre) {
+          return NextResponse.json(
+            { error: "Genre parameter required" },
+            { status: 400 },
+          );
+        }
+        const pageNum = page ? parseInt(page) : 1;
+        const animeByGenreData = await fetchKitsu("/anime", {
+          "filter[genres]": genre,
+          "page[limit]": "20",
+          "page[offset]": ((pageNum - 1) * 20).toString(),
+          sort: "-user_count",
+        });
+        
+        const formattedAnime = convertKitsuToAniListFormat(animeByGenreData.data);
+        return NextResponse.json({
+          anime: formattedAnime,
+          pageInfo: {
+            hasNextPage: animeByGenreData.data.length === 20,
+          },
+        });
 
       default:
         return NextResponse.json(
