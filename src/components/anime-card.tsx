@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ClickableGenreBadge } from "@/components/clickable-genre-badge";
 
 interface Anime {
   id: string | number;
@@ -127,13 +128,7 @@ return (
 
           <div className="flex flex-wrap gap-1">
             {anime.genres?.slice(0, 2).map((genre) => (
-              <Badge
-                key={genre}
-                variant="secondary"
-                className="text-[10px] px-1.5 py-0.5"
-              >
-                {genre}
-              </Badge>
+              <ClickableGenreBadge key={genre} genre={genre} />
             ))}
             {anime.genres && anime.genres.length > 2 && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">

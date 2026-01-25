@@ -121,12 +121,14 @@ export default function AnimePage() {
               Can't find what you're looking for?
             </h2>
             <p className="text-muted-foreground">
-              Try searching for specific anime titles or browse our complete
-              catalog
+              Try searching for specific anime titles, browse by genres, or explore our complete catalog
             </p>
             <div className="flex justify-center gap-4">
               <Button asChild>
                 <a href="/search">Search Anime</a>
+              </Button>
+              <Button variant="outline" asChild>
+                <a href="/genres">Browse by Genre</a>
               </Button>
               <Button variant="outline" asChild>
                 <a href="/api/anime?type=trending&fallback=true">

@@ -23,6 +23,12 @@ export function Header() {
               Browse
             </Link>
             <Link
+              href="/genres"
+              className="transition-colors hover:text-foreground/80"
+            >
+              Genres
+            </Link>
+            <Link
               href="/search"
               className="transition-colors hover:text-foreground/80"
             >
@@ -70,6 +76,13 @@ export function Header() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Browse
+              </Link>
+              <Link
+                href="/genres"
+                className="block py-2 text-sm font-medium transition-colors hover:text-foreground/80"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Genres
               </Link>
               <Link
                 href="/search"

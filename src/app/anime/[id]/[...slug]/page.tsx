@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ClickableGenreBadge } from "@/components/clickable-genre-badge";
 import {
   Star,
   Calendar,
@@ -387,9 +388,7 @@ async function AnimePage({ params }: { params: Promise<{ id: string; slug?: stri
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
                     {anime.genres.map((genre) => (
-                      <Badge key={genre} variant="secondary">
-                        {genre}
-                      </Badge>
+                      <ClickableGenreBadge key={genre} genre={genre} />
                     ))}
                   </div>
                 </CardContent>
